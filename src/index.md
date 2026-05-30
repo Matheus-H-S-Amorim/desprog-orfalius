@@ -9,35 +9,40 @@ Detecção de retas em imagens
 
 ++++++++++++++++++++++++++++++++++++++++++
 
-## Motivação: detecção de faixas
+## Motivação: o que você vê nessa imagem?
 
-Carros autônomos precisam descobrir automaticamente onde estão as faixas da estrada.
-
-![Imagem de estrada com contornos destacados](edge_points.png)
+![Imagem real de uma estrada](vertical-shot-road-with-magnificent-mountains-blue-sky-captured-california.jpg)
 
 ??? Checkpoint
-Observe a imagem acima.
+Observe a imagem acima com cuidado antes de continuar.
 
-Quais partes da cena podem ser aproximadas por retas?
+Sem pensar em algoritmos: quais elementos da cena podem ser aproximados por **retas**?
 
-Tente identificar, visualmente:
-- as faixas da pista;
-- bordas da estrada;
-- estruturas lineares ao fundo.
+Tente identificar pelo menos três regiões lineares distintas. Tente esboçar mentalmente (ou no papel) onde essas retas estariam.
 
-O que fica mais difícil quando a imagem tem ruído ou partes ocluídas?
+- Há retas paralelas? Convergentes?
+- Alguma está parcialmente ocluída?
+- Como você distinguiu a reta de outros elementos da cena?
 ???
 
-## A entrada não é uma imagem
+Carros autônomos precisam fazer exatamente o que você acabou de fazer — só que automaticamente, em milissegundos, mesmo com sombras, chuva e marcações desgastadas. Esse é o problema que a **Transformada de Hough** resolve.
 
-Antes da Transformada de Hough, um detector de bordas, como o Canny, extrai os contornos da cena. O resultado é um **conjunto de pontos** $(x, y)$.
+## Da imagem ao conjunto de pontos
 
-A Transformada de Hough recebe **apenas esses pontos**, não a imagem original.
+Antes da Transformada de Hough, um detector de bordas — como o algoritmo de Canny — percorre a imagem e encontra regiões de variação brusca de intensidade. O resultado é um **conjunto de pontos** $(x, y)$ que marcam os contornos da cena.
+
+![Da imagem original aos pontos de borda](road_to_edges.png)
+
+A Transformada de Hough **não recebe a imagem original**. Ela recebe apenas esses pontos de borda.
 
 ??? Checkpoint
-Olhe para a imagem de bordas acima.
+Observe as três etapas mostradas na figura: imagem original → detector de bordas → conjunto de pontos.
 
-Se você só pudesse enxergar os pontos acesos, o que mudaria na forma de pensar o problema?
+**a)** O que foi preservado nessa sequência? O que foi perdido?
+
+**b)** Olhando só os pontos acesos, você ainda consegue perceber as retas da estrada? Por quê?
+
+**c)** Se um trecho da faixa estiver apagado, o que acontece com o conjunto de pontos naquela região?
 ???
 
 ## Por que não é trivial?
@@ -53,14 +58,18 @@ Para imagens reais, $N$ pode ser da ordem de dezenas de milhares de pixels de bo
 :::
 ???
 
-Mas há um segundo problema, mais sutil. Mesmo que o custo fosse aceitável, a abordagem quebraria na prática porque pontos de borda reais nunca estão perfeitamente sobre uma reta. Ruído, variações de iluminação e oclusões fazem cada ponto desviar levemente da posição ideal.
+Mas há um segundo problema, mais sutil. Mesmo que o custo fosse aceitável, a abordagem quebraria na prática porque pontos de borda reais nunca estão perfeitamente sobre uma reta.
 
-![Pontos ideais e pontos com ruído](ruido_reta.png)
+![Pontos ideais e pontos com ruído](ruido_reta_duplo_painel_ruido_irregular.png)
 
 ??? Checkpoint
-Observe a figura acima.
+Observe a figura acima. O painel da esquerda mostra pontos sem ruído; o da direita, com ruído.
 
-Por que dois pontos com um pequeno erro podem gerar uma reta bem diferente da reta ideal?
+**Antes de ler qualquer explicação:** escolha dois pontos quaisquer no painel da direita e trace mentalmente a reta que passa por eles. Agora escolha outros dois pontos do mesmo conjunto.
+
+- As duas retas que você traçou são parecidas ou bem diferentes?
+- Por que dois pontos com um pequeno desvio podem gerar uma reta bem diferente da reta ideal?
+- O que isso implica para uma abordagem baseada em pares de pontos?
 ???
 
 Esses dois problemas — custo quadrático e sensibilidade ao ruído — motivam a Transformada de Hough.
@@ -69,33 +78,66 @@ Esses dois problemas — custo quadrático e sensibilidade ao ruído — motivam
 
 Toda reta pode ser escrita como $y = ax + b$, com parâmetros $a$ (inclinação) e $b$ (intercepto).
 
-A observação-chave é: se fixarmos um ponto $(x_0, y_0)$ e perguntarmos "quais retas passam por ele?", obtemos:
+### Atividade: retas que passam por um ponto
 
-$$b = -x_0 \cdot a + y_0$$
-
-Isso é **uma reta no espaço de parâmetros** $(a, b)$.
-
-![Espaço da imagem e espaço de parâmetros](image_vs_params.png)
+Antes de qualquer fórmula, faça o seguinte exercício.
 
 ??? Checkpoint
-Dado o ponto $P = (2, 3)$, escreva a relação entre $a$ e $b$ para qualquer reta $y = ax + b$ que passe por $P$.
+Considere o ponto $P = (2, 3)$ no plano $xy$.
+
+**No papel (ou mentalmente), esboce pelo menos quatro retas diferentes que passam por $P$.**
+
+Para cada reta que você esboçar, estime os valores de $a$ e $b$ e anote-os como um par $(a, b)$. Por exemplo: uma reta horizontal tem $a = 0$; uma reta com inclinação 1 tem $a = 1$.
+
+Você obteve quatro pares $(a, b)$ diferentes. O que eles têm em comum?
+???
+
+??? Checkpoint
+Agora, formalize a observação anterior.
+
+Se a reta $y = ax + b$ passa por $P = (2, 3)$, o que você pode dizer sobre $a$ e $b$?
+
+Escreva uma equação que relacione $a$ e $b$.
 ::: Gabarito
 Substituindo $x = 2$ e $y = 3$:
 
 $$3 = a \cdot 2 + b \implies b = -2a + 3$$
 
-Essa é uma reta no espaço de parâmetros. Cada par $(a, b)$ sobre essa reta representa uma reta da imagem que passa por $P$.
+Essa é uma **reta no espaço de parâmetros** $(a, b)$. Cada par $(a, b)$ sobre essa reta representa uma reta da imagem que passa por $P = (2, 3)$.
+
+Compare com os quatro pares que você anotou no checkpoint anterior: todos devem satisfazer essa relação.
 :::
 ???
 
-Agora vem a parte mais importante: o que acontece quando temos dois pontos?
+Esse é o insight fundamental: **um ponto no espaço da imagem vira uma reta no espaço de parâmetros**. Isso se chama *dualidade ponto–reta*.
+
+### O que acontece com dois pontos?
+
+![Interseção no espaço de parâmetros](espaco_parametros.png)
+
+??? Checkpoint
+Observe a figura.
+
+Sem fazer contas:
+
+- Onde as duas retas do espaço de parâmetros parecem se cruzar?
+- O que você acha que esse cruzamento representa?
+
+???
 
 ??? Checkpoint
 Considere dois pontos: $P_1 = (1, 1)$ e $P_2 = (3, 3)$.
 
-Escreva a equação da reta no espaço de parâmetros correspondente a cada ponto. Em seguida, encontre o ponto de interseção $(a^*, b^*)$ das duas retas.
+**Antes de calcular:** esboce no papel os dois pontos e trace a reta que passa por ambos. Qual é a inclinação visual dessa reta? Qual parece ser o intercepto?
 
-O que esse ponto representa no espaço da imagem?
+Agora escreva a equação da reta no espaço de parâmetros correspondente a cada ponto:
+
+- Para $P_1$: qual é a relação entre $a$ e $b$?
+- Para $P_2$: qual é a relação entre $a$ e $b$?
+
+**Esboce as duas retas no espaço $(a, b)$.** Elas se cruzam? Onde?
+
+O que esse ponto de interseção representa no espaço da imagem?
 ::: Gabarito
 Para $P_1 = (1, 1)$: $b = -a + 1$
 
@@ -109,7 +151,9 @@ Logo, $b = 0$.
 
 O ponto de interseção é $(a^*, b^*) = (1, 0)$, que corresponde à reta $y = x$.
 
-**Conclusão:** dois pontos colineares no espaço da imagem geram duas retas que se cruzam num ponto no espaço de parâmetros. Esse ponto de cruzamento *é* a reta detectada.
+Compare com o esboço que você fez antes de calcular: $P_1$ e $P_2$ estão sobre $y = x$, com inclinação 1 e intercepto 0.
+
+**Conclusão:** dois pontos colineares no espaço da imagem geram duas retas que se cruzam num único ponto no espaço de parâmetros. Esse ponto *é* a reta detectada.
 :::
 ???
 
@@ -119,15 +163,17 @@ Com muitos pontos, cada um gera uma reta no espaço de parâmetros. Se todos fos
 
 ![Pontos com ruído e acumulador](pontos_ruido_acumulador.png)
 
-Para lidar com isso, o algoritmo discretiza o espaço de parâmetros numa grade e usa **votação**. Cada ponto incrementa a célula $(a, b)$ correspondente a cada reta que passa por ele. O resultado é chamado de **acumulador**. Ao final, os picos do acumulador são as retas detectadas.
-
 ??? Checkpoint
-Observe a imagem acima.
+Observe a figura acima. O painel da esquerda mostra os pontos de borda (com ruído). O painel da direita mostra o acumulador resultante.
 
-- Por que o pico aparece mesmo com ruído?
-- Por que os pontos fora da reta não destroem o resultado?
-- O que aconteceria se a grade do acumulador fosse muito grossa?
+**Antes de ler a explicação abaixo:**
+
+- Onde está a região mais brilhante do acumulador? O que ela representa?
+- Por que existe um pico bem definido mesmo que os pontos não sejam perfeitamente colineares?
+- O que você esperaria ver no acumulador se houvesse duas retas distintas na imagem?
 ???
+
+Para lidar com o ruído, o algoritmo discretiza o espaço de parâmetros numa grade e usa **votação**. Cada ponto incrementa todas as células $(a, b)$ correspondentes às retas que passam por ele. O resultado é chamado de **acumulador**. Ao final, os picos do acumulador são as retas detectadas.
 
 ??? Checkpoint
 Considere os pontos abaixo, sendo 4 aproximadamente colineares e 2 de ruído puro:
@@ -135,11 +181,13 @@ Considere os pontos abaixo, sendo 4 aproximadamente colineares e 2 de ruído pur
 - $A = (0, 1.0)$, $B = (2, 3.1)$, $C = (4, 4.9)$, $D = (6, 7.2)$
 - $R_1 = (1, 5)$, $R_2 = (5, 1)$
 
-No acumulador, a região em torno de qual ponto $(a^*, b^*)$ deve acumular mais votos?
+No acumulador, a região em torno de qual ponto $(a^*, b^*)$ deve acumular mais votos? Por quê os pontos $R_1$ e $R_2$ não destroem o resultado?
 ::: Gabarito
 A reta ideal que contém $A$–$D$ é $y = x + 1$, com $a^* = 1$ e $b^* = 1$.
 
 Como os pontos têm ruído, as retas no espaço de parâmetros não se cruzam num ponto único; elas se cruzam numa região densa em torno de $(1, 1)$. O acumulador soma esses votos próximos, e o pico emerge dessa concentração.
+
+$R_1$ e $R_2$ também geram retas no espaço de parâmetros, mas essas retas se cruzam com as demais em posições espalhadas, sem formar concentração. O efeito deles no acumulador é difuso, não competitivo com o pico principal.
 :::
 ???
 
@@ -158,12 +206,19 @@ onde $r$ é a distância perpendicular da reta à origem e $\theta$ é o ângulo
 ![Curvas no espaço polar](polar_transform.png)
 
 ??? Checkpoint
-Na representação $(a, b)$, fixar um ponto $(x_0, y_0)$ gerava uma reta no espaço de parâmetros. Na forma polar, o mesmo ponto gera a curva
+Observe a figura acima antes de continuar.
+
+- Quantas curvas você vê no espaço $(r, \theta)$?
+- As curvas parecem retas ou têm outra forma? O que isso sugere sobre a relação entre $r$ e $\theta$?
+- Onde as curvas parecem se cruzar? O que você acha que esse cruzamento representa?
+???
+
+??? Checkpoint
+Na representação $(a, b)$, fixar um ponto $(x_0, y_0)$ gerava uma **reta** no espaço de parâmetros. Na forma polar, o mesmo ponto gera a curva
 
 $$r = x_0 \cos\theta + y_0 \sin\theta$$
 
-Por que essa curva é uma sinusoide e não uma reta?
-???
+Por que essa curva é uma **sinusoide** e não uma reta?
 ::: Gabarito
 Na equação $b = -x_0 a + y_0$, os parâmetros aparecem de forma linear, por isso a curva é uma reta no espaço $(a, b)$.
 
@@ -171,6 +226,7 @@ Na equação $r = x_0 \cos\theta + y_0 \sin\theta$, o parâmetro $\theta$ aparec
 
 A ideia continua a mesma: pontos colineares geram curvas que se cruzam num ponto. A geometria das curvas muda, mas o princípio de votação é idêntico.
 :::
+???
 
 ## O acumulador: votação na prática
 
@@ -183,11 +239,14 @@ O processo para cada ponto de borda $(x, y)$ é:
 
 ![Pico no acumulador polar](acumulador_polar.png)
 
-Ao final, os picos do acumulador são as retas detectadas.
-
 ??? Checkpoint
-Por que é necessário usar um acumulador com votação em vez de simplesmente calcular a interseção exata das curvas?
-???
+Observe o acumulador polar acima.
+
+- Localize visualmente a região de maior intensidade (o pico). Quais são os valores aproximados de $r$ e $\theta$ nessa região?
+- O que esses valores significam para a reta na imagem original?
+- Por que o pico não é um único pixel brilhante, mas uma pequena região?
+
+Só depois de responder: por que é necessário usar votação em vez de simplesmente calcular a interseção exata das curvas?
 ::: Gabarito
 Se os pontos fossem perfeitamente colineares, as curvas se cruzariam num único ponto exato.
 
@@ -195,6 +254,7 @@ Na prática, pontos com ruído geram curvas levemente deslocadas. Elas não se c
 
 Isso torna o algoritmo robusto: ele não exige perfeição dos dados.
 :::
+???
 
 !!! Aviso
 O tamanho do acumulador afeta tanto a precisão quanto o custo. Uma grade fina detecta retas com mais exatidão, mas ocupa mais memória e leva mais tempo para ser percorrida.
@@ -238,7 +298,24 @@ O resultado é um algoritmo $O(N \times M)$, eficiente e robusto a ruído e oclu
 
 A mesma lógica se estende para círculos. Um círculo é definido por três parâmetros: centro $(a, b)$ e raio $r$.
 
-![Ideia da extensão para círculos](circulos_plot.png)
+![Ideia da extensão para círculos](circles_extension.png)
+
+??? Checkpoint
+Observe a figura acima.
+
+Um círculo de raio $r$ centrado em $(a, b)$ satisfaz $(x - a)^2 + (y - b)^2 = r^2$.
+
+Se você fixar um ponto de borda $(x_0, y_0)$ e um raio $r$ conhecido, quais são os possíveis centros $(a, b)$ compatíveis com esse ponto?
+
+Esboce no papel o conjunto de possíveis centros para um único ponto de borda. Que figura geométrica eles formam?
+::: Gabarito
+Os possíveis centros formam um **círculo** de raio $r$ centrado em $(x_0, y_0)$ no espaço $(a, b)$.
+
+Isso é análogo ao caso das retas: um ponto de borda no espaço da imagem gera uma curva no espaço de parâmetros. Agora a curva é um círculo, não uma sinusoide.
+
+Vários pontos de borda colineares geravam sinusoides que se cruzavam num ponto. Vários pontos de borda sobre um mesmo círculo geram círculos (no espaço de parâmetros) que se cruzam num ponto — o centro do círculo detectado.
+:::
+???
 
 Se o raio já é conhecido, cada ponto de borda vota em todos os possíveis centros que estariam à distância $r$ dele. O acumulador vira 2D $(a, b)$.
 
