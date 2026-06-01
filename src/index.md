@@ -194,6 +194,8 @@ $$r = x \cos\theta + y \sin\theta$$
 
 onde $r$ é a distância perpendicular da reta à origem e $\theta$ é o ângulo da normal à reta com o eixo $x$.
 
+![Forma normal de uma reta: $r$ é a distância perpendicular à origem e $\theta$ o ângulo da normal com o eixo $x$.](reta_forma_normal.png)
+
 ![Curvas no espaço polar](polar_transform.png)
 
 ??? Checkpoint
