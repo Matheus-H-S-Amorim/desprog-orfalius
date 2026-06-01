@@ -1,14 +1,5 @@
 # Transformada de Hough
 
-++++++++++++++++++++++++++++++++++++++++++
-## Desafios de Programação
-
-**Transformada de Hough**
-
-Detecção de retas em imagens
-
-++++++++++++++++++++++++++++++++++++++++++
-
 ## Motivação: o que você vê nessa imagem?
 
 ![Imagem real de uma estrada](vertical-shot-road-with-magnificent-mountains-blue-sky-captured-california.jpg)
