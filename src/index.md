@@ -194,12 +194,12 @@ $$r = x \cos\theta + y \sin\theta$$
 
 onde $r$ é a distância perpendicular da reta à origem e $\theta$ é o ângulo da normal à reta com o eixo $x$.
 
-![Forma normal de uma reta: $r$ é a distância perpendicular à origem e $\theta$ o ângulo da normal com o eixo $x$.](reta_forma_normal.png)
+![Forma normal de uma reta: r é a distância perpendicular à origem e θ o ângulo da normal com o eixo x](reta_forma_normal.png)
 
 ![Curvas no espaço polar](polar_transform.png)
 
 ??? Checkpoint
-Observe a figura acima antes de continuar.
+Observe a figura das curvas no espaço $(r, \theta)$ acima antes de continuar.
 
 - Quantas curvas você vê no espaço $(r, \theta)$?
 - As curvas parecem retas ou têm outra forma? O que isso sugere sobre a relação entre $r$ e $\theta$?
@@ -289,7 +289,7 @@ O resultado é um algoritmo $O(N \times M)$, eficiente e robusto a ruído e oclu
 
 ## Desafio: detecção de círculos
 
-A mesma lógica se estende para círculos. Um círculo é definido por três parâmetros: centro $(a, b)$ e raio $r$.
+A mesma lógica se estende para círculos. Um círculo é definido por três parâmetros: centro $(a, b)$ e raio $r$. Atenção: aqui $r$ passa a denotar o **raio** do círculo, e não mais a distância perpendicular da forma polar.
 
 ![Ideia da extensão para círculos](circles_extension.png)
 
